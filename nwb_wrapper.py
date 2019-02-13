@@ -48,8 +48,16 @@ def get_session_starttime(p):
         raise ValueError('Unsupported filetype for get_session_starttime: {}'.format(ext))
 
 
-def get_ddf_starttime(f):
-    dat = load_neuromat(f)
+def get_ddf_starttime(ddf):
+    '''
+    Specific start time get for the ddf mat files
+    :param ddf: a string to a matlab-ddf file, or a loaded matlab file object
+    :return: time of experiment start
+    '''
+    if type(ddf)==str:
+        dat = load_neuromat(ddf)
+    elif type(ddf) is sio.mio5_params.mat_struct:
+        dat = ddf
     finfo = dat.fileInfo
     starttime = datetime(finfo.Time_Year,finfo.Time_Month,finfo.Time_Day,finfo.Time_Hour,finfo.Time_Min,finfo.Time_Sec,finfo.Time_MilliSec,tzinfo=tzlocal())
     return(starttime)
