@@ -41,6 +41,15 @@ def get_session_starttime(p):
     :return starttime: a datetime object
     '''
     first_file = get_first_file(p)
+    ext = os.splitext(first_file)[-1]
+    if ext == '.ddf':
+        return(get_ddf_starttime(f))
+    else:
+        raise ValueError('Unsupported filetype for get_session_starttime: {}'.format(ext))
+
+
+def get_ddf_starttime(f):
+
     dat = load_neuromat(os.path.join(p,first_file))
     finfo = dat.fileInfo
     starttime = datetime(finfo.Time_Year,finfo.Time_Month,finfo.Time_Day,finfo.Time_Hour,finfo.Time_Min,finfo.Time_Sec,tzinfo=tzlocal())
@@ -149,9 +158,6 @@ def init_nwb_electrode(electrode_yaml,nwb_file):
                                group=group)
 
 
-
-
-
 def sanitize_filename(f):
     '''
     takes a filename and makes sure it follows the expected format.
@@ -203,6 +209,7 @@ def add_analog_electrode_data(nwb_file,dat):
                                 conversion=1/10000.
                                 )
     nwb_file.add_acquisition(ephys_ts)
+
 
 def append_data(nwb,dat):
     '''
