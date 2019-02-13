@@ -1,4 +1,5 @@
 import pynwb
+from pynwb.ecephys import ElectricalSeries
 import pandas as pd
 import re
 import os
@@ -99,12 +100,6 @@ def get_subject_info(csv_file,id):
     return(pynwb.file.Subject(**sub_data))
 
 
-
-
-
-
-
-
 def init_NWB(p_load,yaml_file):
     '''
     Initialize an NWB file with appropriate metadata
@@ -118,19 +113,42 @@ def init_NWB(p_load,yaml_file):
     starttime = get_session_starttime(p)
     exp_params = import_NWB_params(yaml_file)
     exp_params['subject']=pynwb.file.Subject(subject_id=fname_meta['mouse_num'],genotype='c57bl6')
-    nwb = NWBFile(exp_params.pop('desc'),ID,
+    nwb_file = NWBFile(exp_params.pop('desc'),ID,
                   session_start_time=starttime,
                   file_create_date=datetime.now(),
                   **exp_params)
+    return(nwb_file)
 
 
-def init_nwb_electrode(electrode_yaml=None):
+def init_nwb_electrode(electrode_yaml,nwb_file):
     '''
-    Creates an electrode object in NWB. If no argument passed, assumes
-    a standard FHC single electrode
-    :param electrode_yaml:
-    :return:
+    Creates an electrode object in NWB.
+    :param electrode_yaml: a filename of a yaml to use electrode info from
+    :return nwb_electrode: an nwb electrode group
     '''
+    with open(electrode_yaml,'r') as fid:
+        electrode_params = yaml.load(fid)
+
+    device_name = electrode_params['device_name']
+    description = electrode_params['description']
+    location = electrode_params['location']
+    electrode_name = electrode_params['group_name']
+    device = nwb_file.create_device(device_name)
+    group = nwb_file.create_electrode_group(electrode_name,
+                                    location=location,
+                                    description=description,
+                                    device=device)
+    for ii in range(electrode_params['num_sites']):
+        nwb_file.add_electrode(x=electrode_params['x'],
+                               y=electrode_params['y'],
+                               z=electrode_params['z'],
+                               imp=electrode_params['imp'],
+                               location=location,
+                               filtering=electrode_params['filtering'],
+                               group=group)
+
+
+
 
 
 def sanitize_filename(f):
@@ -168,7 +186,24 @@ def sanitize_filename(f):
     return(d_out)
 
 
-def add_matlab_data(nwb,dat):
+def add_analog_electrode_data(nwb_file,dat):
+    '''
+    Append the analog electrode data from a matlab file to an nwb file
+
+    :param nwb:
+    :param dat:
+    :return:
+    '''
+    electrode_table_region = nwb_file.create_electrode_table_region([0],'this is hardcoded for one electrode') # currently hardcoded for 1 electrode
+    ephys_ts = ElectricalSeries('test',
+                                dat.analogData.Neural,
+                                electrode_table_region,
+                                timestamps=dat.time,
+                                conversion=1/10000.
+                                )
+    nwb_file.add_acquisition(ephys_ts)
+
+def append_data(nwb,dat):
     '''
     append data from a matlab file as an experiment in an NWB file
 
