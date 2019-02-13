@@ -1,4 +1,5 @@
 import pynwb
+from warnings import warn
 from pynwb.ecephys import ElectricalSeries
 import pandas as pd
 import re
@@ -33,12 +34,14 @@ def load_neuromat(f):
     dat = dat['data']
     return dat
 
+
 def overload_ddf(ddf):
     if type(ddf)==str:
         dat = load_neuromat(ddf)
     elif type(ddf) is sio.mio5_params.mat_struct:
         dat = ddf
     return(dat)
+
 
 def get_session_starttime(p):
     '''
@@ -63,6 +66,8 @@ def get_ddf_starttime(ddf):
     dat = overload_ddf(ddf)
     finfo = dat.fileInfo
     starttime = datetime(finfo.Time_Year,finfo.Time_Month,finfo.Time_Day,finfo.Time_Hour,finfo.Time_Min,finfo.Time_Sec,finfo.Time_MilliSec,tzinfo=tzlocal())
+    starttime = starttime-timedelta(seconds=dat.fileInfo.TimeSpan)
+
     return(starttime)
 
 
@@ -175,6 +180,7 @@ def sanitize_AWAKE_filename(f):
     :param f: a filename from the matlab conversion script
     :return meta: a dict with metadata stripped from the filename
     '''
+    f = os.path.split(f)[-1]
     if f[0]!='m':
         raise ValueError('File does not start with "m". Is this a valid mouse file?')
 
@@ -203,15 +209,14 @@ def sanitize_AWAKE_filename(f):
     return(d_out)
 
 
-def add_analog_obj(f,nwb_file):
+def add_neural_analog(f,nwb_file):
     if os.path.splitext(f)[-1]=='.mat':
-        dat = load_neuromat(f)
-        get_ddf_analog_obj(dat,nwb_file)
+        get_AWAKE_neural(f,nwb_file)
     else:
         raise ValueError('Filetype not supportd to add analog signal: {}'.format(os.path.splitext(f)[-1]))
 
 
-def get_ddf_analog_obj(ddf,nwb_file,gain=10000):
+def get_AWAKE_neural(ddf,nwb_file,gain=10000):
     '''
     extract the neural data from a matlab ddf. Assumes one channel of recording,
     and that the one channel has a specific format in the matlab ddf.
@@ -224,14 +229,13 @@ def get_ddf_analog_obj(ddf,nwb_file,gain=10000):
                                 'this is hardcoded for one electrode') # currently hardcoded for 1 electrode
 
     # get the time difference between the start of the session and the start of this recording
-    recording_start_time = get_ddf_starttime(dat)
-    offset_recording_start_time = recording_start_time - nwb_file.session_start_time
 
+    offset_time = get_offset_time(dat,nwb_file)
     # create the ephys object and add it to the nwb file
     ephys_ts = ElectricalSeries('Single Channel of neural data',
                                 dat.analogData.Neural,
                                 electrode_table_region,
-                                timestamps=dat.time+offset_recording_start_time.total_seconds(),
+                                timestamps=dat.time+offset_time,
                                 conversion=1/float(gain)
                                 )
     nwb_file.add_acquisition(ephys_ts)
@@ -247,14 +251,16 @@ def add_camera_trigger(ddf,nwb_file):
     '''
 
     dat = overload_ddf(ddf)
+    offset_time = get_offset_time(dat,nwb_file)
     idx = trigger_to_idx(dat.analogData.Cam_trig)
     ts = dat.time[idx]
     frametimes = pynwb.ecephys.TimeSeries('Camera Frame onsets',
                                           idx,
                                           'indices',
-                                          timestamps=ts)
+                                          timestamps=ts+offset_time)
     nwb_file.add_acquisition(frametimes)
     return(frametimes)
+
 
 def trigger_to_idx(trigger,thresh=100.,sign='-'):
     '''
@@ -275,7 +281,75 @@ def trigger_to_idx(trigger,thresh=100.,sign='-'):
 
 
 
+def get_offset_time(ddf,nwb_file):
+    '''
+    Utility function to get a given recordings offset from the first recording of the session
+    :param ddf: a ddf file or data
+    :param nwb_file: the nwb_file to append to
+    :return offset_time: float in seconds of the offset between firrst recording start and this recording start
+    '''
+    # get the time difference between the start of the session and the start of this recording
+    dat = overload_ddf(ddf)
+    recording_start_time = get_ddf_starttime(dat)
+    offset_recording_start_time = recording_start_time - nwb_file.session_start_time
+    return(offset_recording_start_time.total_seconds())
 
 
+def concatenate_AWAKE_recordings(p):
+    '''
+    concatenate all the recordings in a given path
+    :param p: Path where all the ddf mat files live
+    :return:
+    '''
+    for ii,f in enumerate(glob.glob(os.path.join(p,'*.mat'))):
+        # ignore calibration files
+        if re.search('calib',f) is not None:
+            print('Skipping {}'.format(os.path.split(f)[-1]))
+            continue
+        print('Loading {}'.format(os.path.split(f)[-1]))
+        fname_meta = sanitize_AWAKE_filename(f)
+        dat = overload_ddf(f)
+        if ii==0:
+            # if this is the first file in the session, initialize the time basis
+            ndata = dat.analogData.Neural
+            time = dat.time
+            starttime = get_ddf_starttime(dat)
+            frame_idx = trigger_to_idx(dat.analogData.Cam_trig)
+            frametimes = dat.time[frame_idx]
+
+            # if the frametimes are not very regular, then the trigger probably failed
+            if np.var(np.diff(frametimes[1:]))>1e-5:
+                frame_idx = np.array([],dtype='int')
+                frametimes = np.array([])
+                warn('Variance of frametimes is high. Probably not the actual camera trigger.\n Deleting all frames in {}'.format(f))
+        else:
+            ndata = np.concatenate([ndata,dat.analogData.Neural])
+
+            # get the start time of this recording, calculate the offset from the first recording, and append to the end
+            exp_time = get_ddf_starttime(dat)
+            offset = exp_time-starttime
+            offset_time = dat.time+offset.total_seconds()
+
+            # get the camera trigger for this recording and offset according to first recording
+            exp_idx = trigger_to_idx(dat.analogData.Cam_trig)
+            exp_offset_idx = exp_idx+len(time)
+            exp_offset_frametimes = dat.time[exp_idx] + offset.total_seconds()
+
+            # if the frametimes are not very regular, then the trigger probably failed
+            if np.var(np.diff(exp_offset_frametimes[1:]))>1e-5:
+                exp_offset_idx = np.array([],dtype='int')
+                exp_offset_frametimes = np.array([])
+                warn('Variance of frametimes is high. Probably not the actual camera trigger.\n Deleting all frames in {}'.format(f))
+
+            # append offset neural and triggers to the full dataset
+            time = np.concatenate([time,offset_time])
+            frame_idx = np.concatenate([frame_idx,exp_offset_idx])
+            frametimes = np.concatenate([frametimes,exp_offset_frametimes])
+
+    out_dict = {'time': time,
+                'frame_idx': frame_idx,
+                'frame_times': frametimes,
+                'neural': ndata}
+    return(out_dict)
 
 
