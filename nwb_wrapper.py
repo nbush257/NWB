@@ -33,6 +33,12 @@ def load_neuromat(f):
     dat = dat['data']
     return dat
 
+def overload_ddf(ddf):
+    if type(ddf)==str:
+        dat = load_neuromat(ddf)
+    elif type(ddf) is sio.mio5_params.mat_struct:
+        dat = ddf
+    return(dat)
 
 def get_session_starttime(p):
     '''
@@ -54,10 +60,7 @@ def get_ddf_starttime(ddf):
     :param ddf: a string to a matlab-ddf file, or a loaded matlab file object
     :return: time of experiment start
     '''
-    if type(ddf)==str:
-        dat = load_neuromat(ddf)
-    elif type(ddf) is sio.mio5_params.mat_struct:
-        dat = ddf
+    dat = overload_ddf(ddf)
     finfo = dat.fileInfo
     starttime = datetime(finfo.Time_Year,finfo.Time_Month,finfo.Time_Day,finfo.Time_Hour,finfo.Time_Min,finfo.Time_Sec,finfo.Time_MilliSec,tzinfo=tzlocal())
     return(starttime)
@@ -208,7 +211,7 @@ def add_analog_obj(f,nwb_file):
         raise ValueError('Filetype not supportd to add analog signal: {}'.format(os.path.splitext(f)[-1]))
 
 
-def get_ddf_analog_obj(f,nwb_file,conversion=0.0001):
+def get_ddf_analog_obj(ddf,nwb_file,gain=10000):
     '''
     extract the neural data from a matlab ddf. Assumes one channel of recording,
     and that the one channel has a specific format in the matlab ddf.
@@ -216,29 +219,63 @@ def get_ddf_analog_obj(f,nwb_file,conversion=0.0001):
     :param conversion: the gain of the amplifier
     :return ephys_ts: a NWB ElectricalSeries object
     '''
-    dat = load_neuromat(f)
+    dat = overload_ddf(ddf)
     electrode_table_region = nwb_file.create_electrode_table_region([0],
                                 'this is hardcoded for one electrode') # currently hardcoded for 1 electrode
-    starttime = get_ddf_starttime(f)
+
+    # get the time difference between the start of the session and the start of this recording
+    recording_start_time = get_ddf_starttime(dat)
+    offset_recording_start_time = recording_start_time - nwb_file.session_start_time
+
+    # create the ephys object and add it to the nwb file
     ephys_ts = ElectricalSeries('Single Channel of neural data',
                                 dat.analogData.Neural,
                                 electrode_table_region,
-                                timestamps=dat.time,
-                                starting_time=starttime,
-                                conversion=conversion
+                                timestamps=dat.time+offset_recording_start_time.total_seconds(),
+                                conversion=1/float(gain)
                                 )
     nwb_file.add_acquisition(ephys_ts)
     return(ephys_ts)
 
 
-def append_data(nwb,dat):
+def add_camera_trigger(ddf,nwb_file):
     '''
-    append data from a matlab file as an experiment in an NWB file
+    use this to transform the camera trigger analog input into events
+    :param ddf:
+    :param nwb_file:
+    :return:
+    '''
 
-    :param nwb: an NWB fle
-    :param dat: a loaded matlab file
-    :return: VOID
+    dat = overload_ddf(ddf)
+    idx = trigger_to_idx(dat.analogData.Cam_trig)
+    ts = dat.time[idx]
+    frametimes = pynwb.ecephys.TimeSeries('Camera Frame onsets',
+                                          idx,
+                                          'indices',
+                                          timestamps=ts)
+    nwb_file.add_acquisition(frametimes)
+    return(frametimes)
+
+def trigger_to_idx(trigger,thresh=100.,sign='-'):
     '''
+    Takes an analog signal of a camera trigger and finds the
+    when the trigger crosses.
+    :param trigger:
+    :param thresh:
+    :return idx: indices in the analog signal in which the threshold was croseed
+    '''
+    if sign=='-':
+        trig_bool = trigger<thresh
+    elif sign =='+':
+        trig_bool = trigger>thresh
+    else:
+        raise ValueError('Sign of threshold crossing not supported: {}'.format(sign))
+    idx = np.where(np.diff(trig_bool.astype('int'))==1)[0]+1
+    return(idx)
+
+
+
+
 
 
 
