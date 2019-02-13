@@ -12,6 +12,7 @@ import numpy as np
 import yaml
 
 #TODO: init_NWB, unpack neuromat,...
+#TODO: make abstract loading factories?
 
 def import_NWB_params(yaml_file):
     '''
