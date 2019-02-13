@@ -41,18 +41,17 @@ def get_session_starttime(p):
     :return starttime: a datetime object
     '''
     first_file = get_first_file(p)
-    ext = os.splitext(first_file)[-1]
-    if ext == '.ddf':
+    ext = os.path.splitext(first_file)[-1]
+    if ext == '.mat':
         return(get_ddf_starttime(f))
     else:
         raise ValueError('Unsupported filetype for get_session_starttime: {}'.format(ext))
 
 
 def get_ddf_starttime(f):
-
-    dat = load_neuromat(os.path.join(p,first_file))
+    dat = load_neuromat(f)
     finfo = dat.fileInfo
-    starttime = datetime(finfo.Time_Year,finfo.Time_Month,finfo.Time_Day,finfo.Time_Hour,finfo.Time_Min,finfo.Time_Sec,tzinfo=tzlocal())
+    starttime = datetime(finfo.Time_Year,finfo.Time_Month,finfo.Time_Day,finfo.Time_Hour,finfo.Time_Min,finfo.Time_Sec,finfo.Time_MilliSec,tzinfo=tzlocal())
     return(starttime)
 
 
@@ -110,7 +109,7 @@ def get_subject_info(csv_file,id):
     return(pynwb.file.Subject(**sub_data))
 
 
-def init_NWB(p_load,yaml_file):
+def init_NWB(p,yaml_file):
     '''
     Initialize an NWB file with appropriate metadata
     :param p: path where all the matlab files exist to be appended to an NWB file
@@ -158,7 +157,7 @@ def init_nwb_electrode(electrode_yaml,nwb_file):
                                group=group)
 
 
-def sanitize_filename(f):
+def sanitize_AWAKE_filename(f):
     '''
     takes a filename and makes sure it follows the expected format.
     Then strips all the needed metadata
@@ -193,22 +192,35 @@ def sanitize_filename(f):
     return(d_out)
 
 
-def add_analog_electrode_data(nwb_file,dat):
-    '''
-    Append the analog electrode data from a matlab file to an nwb file
+def add_analog_obj(f,nwb_file):
+    if os.path.splitext(f)[-1]=='.mat':
+        dat = load_neuromat(f)
+        get_ddf_analog_obj(dat,nwb_file)
+    else:
+        raise ValueError('Filetype not supportd to add analog signal: {}'.format(os.path.splitext(f)[-1]))
 
-    :param nwb:
-    :param dat:
-    :return:
+
+def get_ddf_analog_obj(f,nwb_file,conversion=0.0001):
     '''
-    electrode_table_region = nwb_file.create_electrode_table_region([0],'this is hardcoded for one electrode') # currently hardcoded for 1 electrode
-    ephys_ts = ElectricalSeries('test',
+    extract the neural data from a matlab ddf. Assumes one channel of recording,
+    and that the one channel has a specific format in the matlab ddf.
+    :param f: a matlab ddf
+    :param conversion: the gain of the amplifier
+    :return ephys_ts: a NWB ElectricalSeries object
+    '''
+    dat = load_neuromat(f)
+    electrode_table_region = nwb_file.create_electrode_table_region([0],
+                                'this is hardcoded for one electrode') # currently hardcoded for 1 electrode
+    starttime = get_ddf_starttime(f)
+    ephys_ts = ElectricalSeries('Single Channel of neural data',
                                 dat.analogData.Neural,
                                 electrode_table_region,
                                 timestamps=dat.time,
-                                conversion=1/10000.
+                                starting_time=starttime,
+                                conversion=conversion
                                 )
     nwb_file.add_acquisition(ephys_ts)
+    return(ephys_ts)
 
 
 def append_data(nwb,dat):
