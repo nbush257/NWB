@@ -296,11 +296,14 @@ def get_offset_time(ddf,nwb_file):
 
 
 def concatenate_AWAKE_recordings(p):
+
     '''
     concatenate all the recordings in a given path
     :param p: Path where all the ddf mat files live
     :return:
     '''
+    #TODO: This probably needs more testing
+    #TODO: Add metadata to the output
     for ii,f in enumerate(glob.glob(os.path.join(p,'*.mat'))):
         # ignore calibration files
         if re.search('calib',f) is not None:
@@ -351,5 +354,6 @@ def concatenate_AWAKE_recordings(p):
                 'frame_times': frametimes,
                 'neural': ndata}
     return(out_dict)
+
 
 
