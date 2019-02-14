@@ -302,8 +302,9 @@ def concatenate_AWAKE_recordings(p):
     :param p: Path where all the ddf mat files live
     :return:
     '''
-    #TODO: This probably needs more testing
-    #TODO: Add metadata to the output
+    recording_start_times = []
+    recording_start_indices = [0]
+    nframes = []
     for ii,f in enumerate(glob.glob(os.path.join(p,'*.mat'))):
         # ignore calibration files
         if re.search('calib',f) is not None:
@@ -316,6 +317,7 @@ def concatenate_AWAKE_recordings(p):
             # if this is the first file in the session, initialize the time basis
             ndata = dat.analogData.Neural
             ts = dat.time
+            recording_start_times.append(ts[0])
             starttime = get_ddf_starttime(dat)
             frame_idx = trigger_to_idx(dat.analogData.Cam_trig)
             frametimes = dat.time[frame_idx]
@@ -325,6 +327,7 @@ def concatenate_AWAKE_recordings(p):
                 frame_idx = np.array([],dtype='int')
                 frametimes = np.array([])
                 warn('Variance of frametimes is high. Probably not the actual camera trigger.\n Deleting all frames in {}'.format(f))
+            nframes.append(len(frame_idx))
         else:
             ndata = np.concatenate([ndata,dat.analogData.Neural])
 
@@ -332,7 +335,8 @@ def concatenate_AWAKE_recordings(p):
             exp_time = get_ddf_starttime(dat)
             offset = exp_time-starttime
             offset_time = dat.time+offset.total_seconds()
-
+            recording_start_times.append(offset.total_seconds())
+            recording_start_indices.append(len(ts))
             # get the camera trigger for this recording and offset according to first recording
             exp_idx = trigger_to_idx(dat.analogData.Cam_trig)
             exp_offset_idx = exp_idx+len(ts)
@@ -343,6 +347,7 @@ def concatenate_AWAKE_recordings(p):
                 exp_offset_idx = np.array([],dtype='int')
                 exp_offset_frametimes = np.array([])
                 warn('Variance of frametimes is high. Probably not the actual camera trigger.\n Deleting all frames in {}'.format(f))
+            nframes.append(len(exp_offset_idx))
 
             # append offset neural and triggers to the full dataset
             ts = np.concatenate([ts,offset_time])
@@ -352,7 +357,10 @@ def concatenate_AWAKE_recordings(p):
     out_dict = {'ts': ts,
                 'frame_idx': frame_idx,
                 'frame_times': frametimes,
-                'neural': ndata}
+                'neural': ndata,
+                'recording_start_times':np.array(recording_start_times),
+                'recording_start_indices':np.array(recording_start_indices),
+                'nframes':nframes}
     return(out_dict)
 
 
