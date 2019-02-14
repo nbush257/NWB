@@ -52,7 +52,7 @@ def get_session_starttime(p):
     first_file = get_first_file(p)
     ext = os.path.splitext(first_file)[-1]
     if ext == '.mat':
-        return(get_ddf_starttime(f))
+        return(get_ddf_starttime(first_file))
     else:
         raise ValueError('Unsupported filetype for get_session_starttime: {}'.format(ext))
 
@@ -86,14 +86,17 @@ def get_session_endtime(p):
     return(endtime)
 
 
-def get_first_file(p):
+def get_first_file(p,fullfile_tgl=True):
     '''
     Get the first file in a directory. SHould be mat files converted from DDFs
     :param p: directory to search
     :return first_file: the first file in the directory (alphabetical order)
     '''
     file_list = glob.glob(os.path.join(p,'*.mat'))
-    first_file = os.path.split(file_list[0])[1]
+    if not fullfile_tgl:
+        first_file = os.path.split(file_list[0])[1]
+    else:
+        first_file = file_list[0]
     return(first_file)
 
 
