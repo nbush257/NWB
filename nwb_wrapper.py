@@ -132,7 +132,7 @@ def init_NWB(p,yaml_file):
     :return:
     '''
     first_file = get_first_file(p)
-    fname_meta = sanitize_filename(first_file)
+    fname_meta = sanitize_AWAKE_filename(first_file)
     NWBfilename = os.path.join(p,fname_meta['mouse_num'] + '_' + fname_meta['whisker'])
     ID = fname_meta['ID']
     starttime = get_session_starttime(p)
@@ -300,7 +300,7 @@ def concatenate_AWAKE_recordings(p):
     '''
     concatenate all the recordings in a given path
     :param p: Path where all the ddf mat files live
-    :return:
+    :return cat_dict : a dictionary of the concatenated data
     '''
     recording_start_times = []
     recording_start_indices = [0]
@@ -356,7 +356,7 @@ def concatenate_AWAKE_recordings(p):
             frame_idx = np.concatenate([frame_idx,exp_offset_idx])
             frametimes = np.concatenate([frametimes,exp_offset_frametimes])
 
-    out_dict = {'ts': ts,
+    cat_dict = {'ts': ts,
                 'frame_idx': frame_idx,
                 'frame_times': frametimes,
                 'neural': ndata,
@@ -368,7 +368,20 @@ def concatenate_AWAKE_recordings(p):
                 'subject_id':fname_meta['mouse_num'],
                 'rec_date':fname_meta['rec_date']
                 }
-    return(out_dict)
+    return(cat_dict)
 
 
+def write_AWAKE_NWB(p,exp_yaml,electrode_yaml):
+    '''
+    Create an NWB file for the all the recordings of a particular session for the AWAKE data
+    :param p: path where all the ddf-mat files live
+    :param exp_yaml: a yaml which holds metadata for the experiment
+    :return:
+    '''
+    cat_dict = concatenate_AWAKE_recordings(p)
+    nwb_file = init_NWB(p,exp_yaml)
+
+
+#TODO: use concatenated awake recordings to create an NWB file
+#TODO: make the NWB file readable by KlustaKwik
 
