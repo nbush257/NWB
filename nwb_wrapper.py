@@ -305,6 +305,7 @@ def concatenate_AWAKE_recordings(p):
     recording_start_times = []
     recording_start_indices = [0]
     nframes = []
+    trial_nums = []
     for ii,f in enumerate(glob.glob(os.path.join(p,'*.mat'))):
         # ignore calibration files
         if re.search('calib',f) is not None:
@@ -312,6 +313,7 @@ def concatenate_AWAKE_recordings(p):
             continue
         print('Loading {}'.format(os.path.split(f)[-1]))
         fname_meta = sanitize_AWAKE_filename(f)
+        trial_nums.append(fname_meta['trial_num'])
         dat = overload_ddf(f)
         if ii==0:
             # if this is the first file in the session, initialize the time basis
@@ -360,7 +362,12 @@ def concatenate_AWAKE_recordings(p):
                 'neural': ndata,
                 'recording_start_times':np.array(recording_start_times),
                 'recording_start_indices':np.array(recording_start_indices),
-                'nframes':nframes}
+                'nframes':nframes,
+                'whisker':fname_meta['whisker'],
+                'trial_nums':trial_nums,
+                'subject_id':fname_meta['mouse_num'],
+                'rec_date':fname_meta['rec_date']
+                }
     return(out_dict)
 
 
