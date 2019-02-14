@@ -315,7 +315,7 @@ def concatenate_AWAKE_recordings(p):
         if ii==0:
             # if this is the first file in the session, initialize the time basis
             ndata = dat.analogData.Neural
-            time = dat.time
+            ts = dat.time
             starttime = get_ddf_starttime(dat)
             frame_idx = trigger_to_idx(dat.analogData.Cam_trig)
             frametimes = dat.time[frame_idx]
@@ -335,7 +335,7 @@ def concatenate_AWAKE_recordings(p):
 
             # get the camera trigger for this recording and offset according to first recording
             exp_idx = trigger_to_idx(dat.analogData.Cam_trig)
-            exp_offset_idx = exp_idx+len(time)
+            exp_offset_idx = exp_idx+len(ts)
             exp_offset_frametimes = dat.time[exp_idx] + offset.total_seconds()
 
             # if the frametimes are not very regular, then the trigger probably failed
@@ -345,11 +345,11 @@ def concatenate_AWAKE_recordings(p):
                 warn('Variance of frametimes is high. Probably not the actual camera trigger.\n Deleting all frames in {}'.format(f))
 
             # append offset neural and triggers to the full dataset
-            time = np.concatenate([time,offset_time])
+            ts = np.concatenate([ts,offset_time])
             frame_idx = np.concatenate([frame_idx,exp_offset_idx])
             frametimes = np.concatenate([frametimes,exp_offset_frametimes])
 
-    out_dict = {'time': time,
+    out_dict = {'ts': ts,
                 'frame_idx': frame_idx,
                 'frame_times': frametimes,
                 'neural': ndata}
