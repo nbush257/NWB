@@ -1,6 +1,7 @@
 import pynwb
+from pynwb import NWBHDF5IO
 from warnings import warn
-from pynwb.ecephys import ElectricalSeries
+from pynwb.ecephys import ElectricalSeries,TimeSeries
 import pandas as pd
 import re
 import os
@@ -136,7 +137,6 @@ def init_NWB(p,yaml_file):
     '''
     first_file = get_first_file(p)
     fname_meta = sanitize_AWAKE_filename(first_file)
-    NWBfilename = os.path.join(p,fname_meta['mouse_num'] + '_' + fname_meta['whisker'])
     ID = fname_meta['ID']
     starttime = get_session_starttime(p)
     exp_params = import_NWB_params(yaml_file)
@@ -306,6 +306,7 @@ def concatenate_AWAKE_recordings(p):
     :return cat_dict : a dictionary of the concatenated data
     '''
     recording_start_times = []
+    recording_lengths = []
     recording_start_indices = [0]
     nframes = []
     trial_nums = []
@@ -326,7 +327,7 @@ def concatenate_AWAKE_recordings(p):
             starttime = get_ddf_starttime(dat)
             frame_idx = trigger_to_idx(dat.analogData.Cam_trig)
             frametimes = dat.time[frame_idx]
-
+            recording_lengths.append(dat.fileInfo.TimeSpan)
             # if the frametimes are not very regular, then the trigger probably failed
             if np.var(np.diff(frametimes[1:]))>1e-5:
                 frame_idx = np.array([],dtype='int')
@@ -342,6 +343,7 @@ def concatenate_AWAKE_recordings(p):
             offset_time = dat.time+offset.total_seconds()
             recording_start_times.append(offset.total_seconds())
             recording_start_indices.append(len(ts))
+            recording_lengths.append(dat.fileInfo.TimeSpan)
             # get the camera trigger for this recording and offset according to first recording
             exp_idx = trigger_to_idx(dat.analogData.Cam_trig)
             exp_offset_idx = exp_idx+len(ts)
@@ -369,20 +371,57 @@ def concatenate_AWAKE_recordings(p):
                 'whisker':fname_meta['whisker'],
                 'trial_nums':trial_nums,
                 'subject_id':fname_meta['mouse_num'],
-                'rec_date':fname_meta['rec_date']
+                'rec_date':fname_meta['rec_date'],
+                'recording_lengths':recording_lengths
                 }
     return(cat_dict)
 
 
-def write_AWAKE_NWB(p,exp_yaml,electrode_yaml):
+def add_trial_data(nwb_file,cat_dict):
+    '''
+    Add information on when trials occured into the nwb file
+    :param nwb_file: file to add trial information to
+    :param cat_dict: dict returned when you concatenated the ddfs
+    :return: None
+    '''
+    #TODO: import trial information from external source
+    for trial_start,dur in zip(cat_dict['recording_start_times'],cat_dict['recording_lengths']):
+        nwb_file.add_trial(start_time=trial_start,stop_time=trial_start+dur)
+
+
+
+def write_AWAKE_NWB(p,exp_yaml,electrode_yaml,gain=10000.):
     '''
     Create an NWB file for the all the recordings of a particular session for the AWAKE data
     :param p: path where all the ddf-mat files live
     :param exp_yaml: a yaml which holds metadata for the experiment
     :return:
     '''
+    first_file = get_first_file(p)
+    fname_meta = sanitize_AWAKE_filename(first_file)
+    NWBfilename = os.path.join(p,fname_meta['mouse_num'] + '_' + fname_meta['whisker']+'.nwb')
     cat_dict = concatenate_AWAKE_recordings(p)
     nwb_file = init_NWB(p,exp_yaml)
+    init_nwb_electrode(electrode_yaml,nwb_file)
+    electrode_table_region = nwb_file.create_electrode_table_region([0],
+                                                                    'this is hardcoded for one electrode') # currently hardcoded for 1 electrode
+    ephys_ts = ElectricalSeries('single channel of neural data across recordings',
+                                cat_dict['neural'],
+                                electrode_table_region,
+                                timestamps=cat_dict['ts'],
+                                conversion=1./float(gain))
+    nwb_file.add_acquisition(ephys_ts)
+    cam_trig = TimeSeries('Camera frame onsets',
+                          cat_dict['frame_idx'],
+                          'indices',
+                          timestamps=cat_dict['frame_times'])
+    nwb_file.add_acquisition(cam_trig)
+    add_trial_data(nwb_file,cat_dict)
+    # write the file
+    print('writing NWB_file to\n\t{}...'.format(NWBfilename))
+    with NWBHDF5IO('{}'.format(NWBfilename), 'w') as io:
+        io.write(nwb_file)
+    print('Done!')
 
 
 #TODO: use concatenated awake recordings to create an NWB file
