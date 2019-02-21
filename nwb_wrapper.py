@@ -399,7 +399,7 @@ def write_AWAKE_NWB(p,exp_yaml,electrode_yaml,gain=10000.):
     '''
     first_file = get_first_file(p)
     fname_meta = sanitize_AWAKE_filename(first_file)
-    NWBfilename = os.path.join(p,fname_meta['mouse_num'] + '_' + fname_meta['whisker']+'.nwb')
+    NWBfilename = os.path.join(p,fname_meta['mouse_num'] + '_' + fname_meta['rec_date'] + '_' + fname_meta['whisker']+'.nwb')
     cat_dict = concatenate_AWAKE_recordings(p)
     nwb_file = init_NWB(p,exp_yaml)
     init_nwb_electrode(electrode_yaml,nwb_file)
