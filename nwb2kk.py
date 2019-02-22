@@ -257,6 +257,8 @@ if __name__=='__main__':
         prm_file = os.path.splitext(args[0])[0]
         print('Running klusta on {}.prm'.format(prm_file))
         os.system('deactivate & activate klusta & klusta {}.prm'.format(prm_file))
+        os.system('rmdir /s /q .spikedetekt')
+        os.system('rmdir /s /q .klustakwik2')
 
 
 
