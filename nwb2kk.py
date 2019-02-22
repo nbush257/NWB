@@ -259,6 +259,20 @@ if __name__=='__main__':
         os.system('deactivate & activate klusta & klusta {}.prm'.format(prm_file))
         os.system('rmdir /s /q .spikedetekt')
         os.system('rmdir /s /q .klustakwik2')
+        manual_sort = input('Do you want to manually sort now? ([y]/n)')
+        if manual_sort.lower()!='n':
+            os.system('deactivate & activate klusta & phy kwik-gui {}.kwik'.format(prm_file))
+            print('\n'+'='*15)
+            print('Thank you for sorting today!')
+            print('='*15)
+            os.system('rmdir /s /q .phy')
+
+        else:
+            print('\n'+'='*15)
+            print('Thank you for sorting today!')
+            print('='*15)
+
+
 
 
 
