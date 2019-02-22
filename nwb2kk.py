@@ -1,4 +1,5 @@
 import pynwb
+import subprocess
 import matplotlib.pyplot as plt
 import sys
 import numpy as np
@@ -253,6 +254,9 @@ if __name__=='__main__':
     else:
         detect_direction = write_raw_for_kk(args[0],save_dir=options.save_dir,detect_direction=options.detect)
         save_param_file(args[0],detect=detect_direction)
+        prm_file = os.path.splitext(args[0])[0]
+        print('Running klusta on {}.prm'.format(prm_file))
+        os.system('deactivate & activate klusta & klusta {}.prm'.format(prm_file))
 
 
 
