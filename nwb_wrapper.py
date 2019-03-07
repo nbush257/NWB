@@ -235,7 +235,7 @@ def get_AWAKE_neural(ddf,nwb_file,gain=10000):
 
     offset_time = get_offset_time(dat,nwb_file)
     # create the ephys object and add it to the nwb file
-    ephys_ts = ElectricalSeries('Single Channel of neural data',
+    ephys_ts = ElectricalSeries('channel_0',
                                 dat.analogData.Neural,
                                 electrode_table_region,
                                 timestamps=dat.time+offset_time,
@@ -405,7 +405,7 @@ def write_AWAKE_NWB(p,exp_yaml,electrode_yaml,gain=10000.):
     init_nwb_electrode(electrode_yaml,nwb_file)
     electrode_table_region = nwb_file.create_electrode_table_region([0],
                                                                     'this is hardcoded for one electrode') # currently hardcoded for 1 electrode
-    ephys_ts = ElectricalSeries('single channel of neural data across recordings',
+    ephys_ts = ElectricalSeries('channel_0',
                                 cat_dict['neural'],
                                 electrode_table_region,
                                 timestamps=cat_dict['ts'],

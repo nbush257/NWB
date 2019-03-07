@@ -36,7 +36,7 @@ def write_raw_for_kk(nwb_filename,save_dir=None,detect_direction=None):
 
     with NWBHDF5IO(nwb_filename,'r') as io:
         nwbfile = io.read()
-        ephys_ts = nwbfile.get_acquisition('single channel of neural data across recordings')
+        ephys_ts = nwbfile.get_acquisition('channel_0')
         if detect_direction is None:
             detect_direction = manual_detect_direction(ephys_ts)
         raw_array = np.array(ephys_ts.data,dtype = 'float32')
@@ -75,8 +75,8 @@ def kk2nwb_units(kwik_filename,nwb_filename):
     # open the nwb file for reading and appending
     io = NWBHDF5IO(nwb_filename,mode='a')
     nwbfile = io.read()
-    time_vec = nwbfile.acquisition['single channel of neural data across recordings'].timestamps.value
-    neural = nwbfile.acquisition['single channel of neural data across recordings'].data
+    time_vec = nwbfile.acquisition['channel_0'].timestamps.value
+    neural = nwbfile.acquisition['channel_0'].data
 
     # access the kwik sort data
     kwik = h5py.File(kwik_filename)
@@ -116,8 +116,6 @@ def kk2nwb_units(kwik_filename,nwb_filename):
     print('done!')
     return(0)
 
-#TODO: remove klustakwik leftovers
-
 
 def get_neural(raw_dat_file,dat_type='float32'):
     '''
@@ -144,7 +142,7 @@ def get_waveforms(spike_idx,neural,pre=15,post=15):
     waveforms = np.empty([pre+post,len(spike_idx)])
     for ii,idx in enumerate(spike_idx):
         waveforms[:,ii] = neural[idx-pre:idx+post]
-    return(waveforms,np.mean(waveforms,axis=1),np.std(waveforms,axis=1))
+    return(waveforms,np.mean(waveforms,axis=1).ravel(),np.std(waveforms,axis=1).ravel())
 
 
 def FHC_SE_prb_file(prb_filename):
@@ -164,6 +162,7 @@ def save_param_file(nwb_filename,detect='positive'):
     currently hardcoded some default parameters, while reading in some from the file
     :return:
     '''
+    # TODO: Make this more mutable?
     if detect not in ['positive','negative']:
         raise ValueError('Detect must be "positive" or "negative"')
 
@@ -178,9 +177,9 @@ def save_param_file(nwb_filename,detect='positive'):
 
     print('Sample Rate conversion is kinda hacky\n')
 
-    time_vec = nwbfile.acquisition['single channel of neural data across recordings'].timestamps.value
+    time_vec = nwbfile.acquisition['channel_0'].timestamps.value
     sr = np.mean(np.diff(time_vec[:1000])) ** -1
-    gain = nwbfile.acquisition['single channel of neural data across recordings'].conversion
+    gain = nwbfile.acquisition['channel_0'].conversion
 
     print('Writing parameter file to: {}'.format(param_filename))
     fid = open(param_filename,'w')
