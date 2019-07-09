@@ -424,6 +424,3 @@ def write_AWAKE_NWB(p,exp_yaml,electrode_yaml,gain=10000.):
     print('Done!')
 
 
-#TODO: use concatenated awake recordings to create an NWB file
-#TODO: make the NWB file readable by KlustaKwik
-
