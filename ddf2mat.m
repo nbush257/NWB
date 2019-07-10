@@ -56,6 +56,10 @@ for ii = 1:length(tag)
     for jj = 1:length(recordings)
         outfname = [target_dir '\' recordings(jj).name(1:end-4) '_tempConvert.mat'];
         data = importDDF_vg([p '\' recordings(jj).name]);
+        if isfield(data.analogData,'Sent_trig')
+            data.analogData.Cam_trig = data.analogData.Sent_trig;
+        end
+        
         save(outfname,'data');
        
     end
