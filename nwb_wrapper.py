@@ -279,24 +279,21 @@ def trigger_to_idx(trigger,thresh=100.,sign='+'):
     biggest = np.quantile(trigger,.9)
     smallest = np.quantile(trigger,.1)
 
-    # determine whther the initial value is large or small compared to the activated value
-    # i.e., determine whether the signal is active high or low
-    d = np.abs([initial-smallest,initial-biggest])
+    if (biggest-smallest) <1000:
+        raise ValueError('Difference between big and small values in camera trigger is less than 1000')
+    thresh = np.mean([biggest,smallest])
 
-    if d[0]>d[1]:
-        sign = '-'
+    above = trigger>thresh
+    d = np.diff(above.astype('double'))
+    first = np.where(np.abs(d)>.5)[0][0]
+    if d[first]>0:
+        idx =np.where(d>.5)[0]
     else:
-        sign = '+'
+        idx =np.where(d<-.5)[0]
 
-    trigger -= initial
+    frame_interval = np.mean(np.diff(idx))/40000. #calculate the frame interval in seconds assuming a 40kHz sample
+    print('Frame rate of camera is calcualted to be {:.2f} fps'.format(frame_interval**-1))
 
-    if sign=='-':
-        trig_bool = trigger<-thresh
-    elif sign =='+':
-        trig_bool = trigger>thresh
-    else:
-        raise ValueError('Sign of threshold crossing not supported: {}'.format(sign))
-    idx = np.where(np.diff(trig_bool.astype('int'))==1)[0]+1
     return(idx)
 
 
