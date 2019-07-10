@@ -2,30 +2,27 @@ from nwb_wrapper import *
 from optparse import OptionParser
 
 if __name__=='__main__':
-    usage = "Usage: %prog [options] path exp_yaml electrode_yaml"
+    usage = "Usage: %prog path -e exp_yaml -l electrode_yaml"
     parser = OptionParser(usage=usage)
-    parser.add_option('-s','--savedir',
+    parser.add_option('-e','--experiment',
                       type='string',
-                      dest='save_dir',
+                      dest='exp_yaml',
                       action='store',
                       default=None,
-                      help='Directory where we save the raw neural data extracted from the nwb file')
-    parser.add_option('-k','--kwik_filename',
+                      help='Yaml file with the experiment paramters')
+    parser.add_option('-l','--electrode',
                       type='string',
-                      dest='kwik_filename',
+                      dest='electrode_yaml',
                       action='store',
                       default=None,
-                      help='Filename of the sorted kwik file. If this argument is passed, then appends to an nwb file')
+                      help='Yaml file with the elcetrode paramters')
 
-    parser.add_option('-d','--detect_direction',
-                      type='string',
-                      dest='detect',
-                      action='store',
-                      default=None,
-                      help='[deprecated] Direction of the spike to detect')
 
     options,args = parser.parse_args()
+
+    print(options)
     print(args)
+    write_AWAKE_NWB(args[0],options.exp_yaml,options.electrode_yaml)
 #
 #TODO: use concatenated awake recordings to create an NWB file
 #TODO: make the NWB file readable by KlustaKwik
