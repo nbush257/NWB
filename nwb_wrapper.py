@@ -1,4 +1,5 @@
 import pynwb
+import scipy.stats
 from pynwb import NWBHDF5IO
 from warnings import warn
 from pynwb.ecephys import ElectricalSeries,TimeSeries
@@ -273,8 +274,24 @@ def trigger_to_idx(trigger,thresh=100.,sign='+'):
     :param thresh:
     :return idx: indices in the analog signal in which the threshold was croseed
     '''
+    # get the initial value of the trigger, along with the 10th percentile lagrest and smallest values
+    initial = np.median(trigger[:100])
+    biggest = np.quantile(trigger,.9)
+    smallest = np.quantile(trigger,.1)
+
+    # determine whther the initial value is large or small compared to the activated value
+    # i.e., determine whether the signal is active high or low
+    d = np.abs([initial-smallest,initial-biggest])
+
+    if d[0]>d[1]:
+        sign = '-'
+    else:
+        sign = '+'
+
+    trigger -= initial
+
     if sign=='-':
-        trig_bool = trigger<thresh
+        trig_bool = trigger<-thresh
     elif sign =='+':
         trig_bool = trigger>thresh
     else:
