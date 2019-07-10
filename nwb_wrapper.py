@@ -194,9 +194,9 @@ def sanitize_AWAKE_filename(f):
         raise ValueError('filename does not end with tempConvert indicator')
     if len(fileparts[0])!= 7:
         raise ValueError('Mouse number is wrong length')
-    if len(fileparts[1])!= 8:
-        raise ValueError('Recording date is wrong length')
-    if len(fileparts[2])!= 2:
+    if len(fileparts[2])!= 8:
+        raise ValueError('Recording date is {}, and is of wrong length'.format(fileparts[1]))
+    if len(fileparts[1])!= 2:
         raise ValueError('Whisker ID is wrong length')
     mouse_num = fileparts[0]
     rec_date = fileparts[1]
@@ -265,7 +265,7 @@ def add_camera_trigger(ddf,nwb_file):
     return(frametimes)
 
 
-def trigger_to_idx(trigger,thresh=100.,sign='-'):
+def trigger_to_idx(trigger,thresh=100.,sign='+'):
     '''
     Takes an analog signal of a camera trigger and finds the
     when the trigger crosses.
