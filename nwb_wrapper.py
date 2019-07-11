@@ -14,8 +14,6 @@ from pynwb import NWBFile
 import numpy as np
 import yaml
 
-#TODO: init_NWB, unpack neuromat,...
-#TODO: make abstract loading factories?
 
 def import_NWB_params(yaml_file):
     '''
@@ -292,7 +290,8 @@ def trigger_to_idx(trigger,thresh=100.,sign='+'):
         idx =np.where(d<-.5)[0]
 
     frame_interval = np.mean(np.diff(idx))/40000. #calculate the frame interval in seconds assuming a 40kHz sample
-    print('Frame rate of camera is calcualted to be {:.2f} fps'.format(frame_interval**-1))
+    print('='*15)
+    print('Frame rate of camera is calculated to be {:.2f} fps\n'.format(frame_interval**-1))
 
     return(idx)
 
