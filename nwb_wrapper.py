@@ -211,6 +211,45 @@ def sanitize_AWAKE_filename(f):
     return(d_out)
 
 
+def add_all_analog(ddf,nwb_file,starting_time):
+    '''
+    Add all the analog data and information to an NWB as a
+    NWB TimeSeries object
+    :param ddf: the datawave file or data structure
+    :param nwb_file: the NWB file object to write to
+    :param starting_time: the start time of this file relative to the first file
+    return:
+    '''
+    dat = overload_ddf(ddf)
+    for label in dat.analogInfo._fieldnames:
+        TS = get_analog_TS(dat,label,starting_time)
+
+    nwb_file.add_acquisition(TS)
+
+
+def get_analog_TS(dat,label,starting_time):
+    '''
+    Converts an individual analog trace from the datawave matlab format to
+    the NWB timeseries base class.
+    :param dat: a datawave data structure
+    :param label: name of the analog data to grab from the ddf data strcut
+    :param starting_time: the start time of this file relative to the first file
+
+    :return: TS - a NWB TimeSeries object with the ddf data populated
+
+    '''
+    info = dat.analogInfo.__getattribute__(label)
+    data = dat.analogData.__getattribute__(label)
+    print('Converting {}'.format(label))
+    TS = pynwb.base.TimeSeries(label,
+                               data=data,
+                               unit=info.Units,
+                               resolution=info.Resolution,
+                               timestamps=dat.time,
+                               starting_time=starting_time)
+    return(TS)
+
+
 def add_neural_analog(f,nwb_file):
     if os.path.splitext(f)[-1]=='.mat':
         get_AWAKE_neural(f,nwb_file)
