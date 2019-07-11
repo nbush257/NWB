@@ -267,6 +267,43 @@ def convert_TS_to_ES(TS,electrode_table_region,gain=10000):
                                               starting_time=TS.starting_time,
                                               electrode_table_region=electrode_table_region)
     return(ephys_ts)
+
+
+def add_all_digital(ddf,nwb_file,starting_time):
+    '''
+    Add all the analog data and information to an NWB as a
+    NWB TimeSeries object
+    :param ddf: the datawave file or data structure
+    :param nwb_file: the NWB file object to write to
+    :param starting_time: the start time of this file relative to the first file
+    return: None
+    '''
+    dat = overload_ddf(ddf)
+    for label in dat.eventData._fieldnames:
+        AS = get_digital_AS(dat,label,starting_time)
+
+    nwb_file.add_acquisition(AS)
+
+
+def get_digital_AS(dat,label,starting_time):
+    '''
+    Converts an individual digital trace from the datawave matlab format to
+    the annotation series class
+    :param dat: a datawave data structure
+    :param label: name of the digital data to grab from the ddf data strcut
+    :param starting_time: the start time of this file relative to the first file
+
+    :return: AS - a NWB TimeSeries object with the ddf data populated
+    '''
+    data = dat.eventData.__getattribute__(label)
+
+    AS = pynwb.misc.AnnotationSeries(name=label,
+                                     data=data.val,
+                                     timestamps=data.ts+starting_time,
+                                     )
+    return(AS)
+
+
 def add_neural_analog(f,nwb_file):
     if os.path.splitext(f)[-1]=='.mat':
         get_AWAKE_neural(f,nwb_file)
