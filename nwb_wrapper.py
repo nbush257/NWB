@@ -218,7 +218,7 @@ def add_all_analog(ddf,nwb_file,starting_time):
     :param ddf: the datawave file or data structure
     :param nwb_file: the NWB file object to write to
     :param starting_time: the start time of this file relative to the first file
-    return:
+    return: None
     '''
     dat = overload_ddf(ddf)
     for label in dat.analogInfo._fieldnames:
@@ -250,6 +250,23 @@ def get_analog_TS(dat,label,starting_time):
     return(TS)
 
 
+def convert_TS_to_ES(TS,electrode_table_region,gain=10000):
+    '''
+    This function takes a TimeSeries base class object and converts it to
+    and ElectricalSeries subclass object
+    :param TS: TimeSeries object
+    :param electrode_table_region: the electrode table region that electrode came from
+    :param gain: the gain factor of the recording (from the amplifier)
+    :return: None
+    '''
+    ephys_ts = pynwb.ecephys.ElectricalSeries(TS.name,
+                                              data=TS.data,
+                                              unit=TS.unit,
+                                              resolution=TS.Resolution,
+                                              timestamps=TS.timestamps,
+                                              starting_time=TS.starting_time,
+                                              electrode_table_region=electrode_table_region)
+    return(ephys_ts)
 def add_neural_analog(f,nwb_file):
     if os.path.splitext(f)[-1]=='.mat':
         get_AWAKE_neural(f,nwb_file)
