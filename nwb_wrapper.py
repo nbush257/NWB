@@ -87,6 +87,7 @@ def init_NWB(f,subject,yaml_file):
         ID = subject['ID']
     elif type(subject) is pynwb.file.Subject:
         ID = subject.subject_id
+        exp_params['subject'] = subject
 
     nwb_file = NWBFile(exp_params.pop('desc'),ID,
                   session_start_time=get_ddf_starttime(f),
@@ -307,12 +308,13 @@ def concatenate_recordings(p):
     return(cat_dict)
 
 
-def write_NWB(f,exp_yaml,subject=None,NWBfilename=None,gain=10000.):
+def convert_NWB(f,exp_yaml,subject=None,NWBfilename=None):
     '''
     convert a Matlab DDF to a NWB formatted file
     :param f: DDF file to convert
     :param exp_yaml: a yaml which holds metadata for the experiment
-    :param electrode_yaml:a yaml which holds metadata for the experiment
+    :param subject: a pynwb subject object
+    :param NWBfilename: the output filename to convert to. If not provided, simply changes the extension
     :return:
     '''
     p = os.path.split(f)[0]
@@ -343,5 +345,3 @@ def write_NWB(f,exp_yaml,subject=None,NWBfilename=None,gain=10000.):
     print('Done!')
 
 
-#TODO: make able to read subject as a csv
-#TODO: test conversion with subject as csv and as empty
