@@ -361,15 +361,143 @@ def convert_NWB(f,exp_yaml,subject=None,NWBfilename=None):
     print('Done!')
 
 
-def concatenate_NWB(NWB_list):
+def get_trial_duration_from_analog(nwb_file):
+    '''Loop through all the acquisitions of an NWB and return the longest duration
+    based on all the timestamps
+    '''
+    durations = []
+    for acq in nwb_in.acquisition:
+        temp = nwb_in.get_acquisition(acq)
+        durations.append(temp.timestamps[-1]-temp.timestamps[0])
+    durations.sort()
+    return(durations[-1])
+
+
+def concatenate_NWB(NWB_list,catname):
     '''
     Given a list of NWB files, put them all into the same file.
     :param NWB_list:
     :return:
     '''
+    # ================================= #
+    #order the nwb files by start time
+    # ================================= #
+    start_times = []
+    durations = []
+    acquisition_names = []
     for f in NWB_list:
         io = NWBHDF5IO(f,'r')
-        nwb_file = io.read()
+        nwb_in = io.read()
+        start_times.append(nwb_in.session_start_time)
+        durations.append(get_trial_duration_from_analog(nwb_in))
+        for acq in nwb_in.acquisition.keys():
+            acquisition_names.append(acq)
+    acquisition_names = list(set(acquisition_names))
+    nwb_sequence = [i for (v, i) in sorted((v, i) for (i, v) in enumerate(start_times))]
+    NWB_list = [NWB_list[i] for i in nwb_sequence]
+    print('Concatenating nwb files in the following order:')
+    print(*NWB_list,sep='\n')
+
+    # ================================= #
+    # get offset times
+    # ================================= #
+    session_start_time = sort(start_times)[0]
+    offset_times = [i-session_start_time for i in start_times]
+    offset_times = [i.total_seconds() for i in offset_times]
+
+    # ================================= #
+    # Set up the NWB out file
+    # ================================= #
+    strip_acq = nwb_in.fields
+    strip_acq.pop('acquisition')
+    d = []
+    for key,val in strip_acq.items():
+        if (type(val) is pynwb.core.LabelledDict) and (len(val)==0):
+            d.append(key)
+    [strip_acq.pop(i) for i in d]
+
+    nwb_out = NWBFile(session_description=nwb_in.session_description,
+                      identifier=nwb_in.identifier,
+                      session_start_time=session_start_time,
+                      **strip_acq)
+    # ================================= #
+    # extract all data
+    # ================================= #
+    for acq_name in acquisition_names:
+        for ii,f in enumerate(NWB_list):
+            starting_time = offset_times[ii]
+            io = NWBHDF5IO(f,'r')
+            nwb_in = io.read()
+            #Skip non-present data
+            if acq_name not in list(nwb_in.acquisition.keys()):
+                continue
+
+            #Shortcut to the desired acquisition
+            acq = nwb_in.get_acquisition(acq_name)
+
+            # Compatability for multiple data types
+            if type(acq.data) is not np.ndarray:
+                acq_data = acq.data.value
+            else:
+                acq_data=acq.data
+            if type(acq.timestamps) is not np.ndarray:
+                acq_timestamps = acq.timestamps.value
+            else:
+                acq_timestamps=acq.timestamps
+
+            # If this is the first file, initialize the concatenated temp data
+            if ii==0:
+                cat_data = acq_data
+                cat_ts = acq_timestamps
+                res = acq.resolution
+                unit = acq.unit
+            else:
+                cat_data = np.concatenate([cat_data,acq_data])
+                cat_ts = np.concatenate([cat_ts,acq_timestamps+starting_time])
+
+        # ================================= #
+        # set up the concatenated objects
+        # ================================= #
+        if acq.neurodata_type == 'TimeSeries':
+            cat_acq = pynwb.TimeSeries(name=acq_name,
+                                       data=cat_data,
+                                       timestamps=cat_ts,
+                                       resolution=res,
+                                       unit=unit)
+            nwb_out.add_acquisition(cat_acq)
+        if acq.neurodata_type == 'AnnotationSeries':
+            cat_acq = pynwb.misc.AnnotationSeries(name=acq_name,
+                                                  data=cat_data,
+                                                  timestamps=cat_ts)
+            nwb_out.add_acquisition(cat_acq)
+
+    # ================================= #
+    # add trial markers
+    # ================================= #
+    for start_time,duration in zip(offset_times,durations):
+        nwb_out.add_trial(start_time=start_time,stop_time=start_time+duration)
+
+
+    # ================================= #
+    # write output
+    # ================================= #
+    print('writing NWB_file to\n\t{}...'.format(catname))
+    with NWBHDF5IO('{}'.format(catname), 'w') as io:
+        io.write(nwb_out)
+    print('Concatenated data!')
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
