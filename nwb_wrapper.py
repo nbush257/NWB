@@ -193,9 +193,9 @@ def sanitize_AWAKE_filename(f):
         raise ValueError('filename does not end with tempConvert indicator')
     if len(fileparts[0])!= 7:
         raise ValueError('Mouse number is wrong length')
-    if len(fileparts[2])!= 8:
+    if len(fileparts[1])!= 8:
         raise ValueError('Recording date is {}, and is of wrong length'.format(fileparts[1]))
-    if len(fileparts[1])!= 2:
+    if len(fileparts[2])!= 2:
         raise ValueError('Whisker ID is wrong length')
     mouse_num = fileparts[0]
     rec_date = fileparts[1]
@@ -403,7 +403,6 @@ def trigger_to_idx(trigger,thresh=100.,sign='+'):
     return(idx)
 
 
-
 def get_offset_time(ddf,nwb_file):
     '''
     Utility function to get a given recordings offset from the first recording of the session
@@ -418,7 +417,7 @@ def get_offset_time(ddf,nwb_file):
     return(offset_recording_start_time.total_seconds())
 
 
-def concatenate_AWAKE_recordings(p):
+def concatenate_recordings(p):
 
     '''
     concatenate all the recordings in a given path
@@ -441,21 +440,19 @@ def concatenate_AWAKE_recordings(p):
         dat = overload_ddf(f)
         if ii==0:
             # if this is the first file in the session, initialize the time basis
-            ndata = dat.analogData.Neural
             ts = dat.time
             recording_start_times.append(ts[0])
             starttime = get_ddf_starttime(dat)
-            frame_idx = trigger_to_idx(dat.analogData.Cam_trig)
-            frametimes = dat.time[frame_idx]
             recording_lengths.append(dat.fileInfo.TimeSpan)
-            # if the frametimes are not very regular, then the trigger probably failed
-            if np.var(np.diff(frametimes[1:]))>1e-5:
-                frame_idx = np.array([],dtype='int')
-                frametimes = np.array([])
-                warn('Variance of frametimes is high. Probably not the actual camera trigger.\n Deleting all frames in {}'.format(f))
-            nframes.append(len(frame_idx))
+
+            # create signals
+            analog={}
+            for field in dat.analogData._fieldnames:
+                analog[field] = dat.analogData.__getattribute__(field)
+
         else:
-            ndata = np.concatenate([ndata,dat.analogData.Neural])
+            for field in dat.analogData._fieldnames:
+                analog[field] = np.concatenate([analog[field],dat.analogData.__getattribute__(field)])
 
             # get the start time of this recording, calculate the offset from the first recording, and append to the end
             exp_time = get_ddf_starttime(dat)
@@ -465,29 +462,26 @@ def concatenate_AWAKE_recordings(p):
             recording_start_indices.append(len(ts))
             recording_lengths.append(dat.fileInfo.TimeSpan)
             # get the camera trigger for this recording and offset according to first recording
-            exp_idx = trigger_to_idx(dat.analogData.Cam_trig)
-            exp_offset_idx = exp_idx+len(ts)
-            exp_offset_frametimes = dat.time[exp_idx] + offset.total_seconds()
+            #exp_idx = trigger_to_idx(dat.analogData.Cam_trig)
+            #exp_offset_idx = exp_idx+len(ts)
+            #exp_offset_frametimes = dat.time[exp_idx] + offset.total_seconds()
 
             # if the frametimes are not very regular, then the trigger probably failed
-            if np.var(np.diff(exp_offset_frametimes[1:]))>1e-5:
-                exp_offset_idx = np.array([],dtype='int')
-                exp_offset_frametimes = np.array([])
-                warn('Variance of frametimes is high. Probably not the actual camera trigger.\n Deleting all frames in {}'.format(f))
-            nframes.append(len(exp_offset_idx))
+            #if np.var(np.diff(exp_offset_frametimes[1:]))>1e-5:
+                #exp_offset_idx = np.array([],dtype='int')
+                #exp_offset_frametimes = np.array([])
+                #warn('Variance of frametimes is high. Probably not the actual camera trigger.\n Deleting all frames in {}'.format(f))
+            #nframes.append(len(exp_offset_idx))
 
             # append offset neural and triggers to the full dataset
             ts = np.concatenate([ts,offset_time])
-            frame_idx = np.concatenate([frame_idx,exp_offset_idx])
-            frametimes = np.concatenate([frametimes,exp_offset_frametimes])
+            #frame_idx = np.concatenate([frame_idx,exp_offset_idx])
+            #frametimes = np.concatenate([frametimes,exp_offset_frametimes])
 
     cat_dict = {'ts': ts,
-                'frame_idx': frame_idx,
-                'frame_times': frametimes,
-                'neural': ndata,
+                'analogData': analog,
                 'recording_start_times':np.array(recording_start_times),
                 'recording_start_indices':np.array(recording_start_indices),
-                'nframes':nframes,
                 'whisker':fname_meta['whisker'],
                 'trial_nums':trial_nums,
                 'subject_id':fname_meta['mouse_num'],
@@ -507,7 +501,6 @@ def add_trial_data(nwb_file,cat_dict):
     #TODO: import trial information from external source
     for trial_start,dur in zip(cat_dict['recording_start_times'],cat_dict['recording_lengths']):
         nwb_file.add_trial(start_time=trial_start,stop_time=trial_start+dur)
-
 
 
 def write_AWAKE_NWB(p,exp_yaml,electrode_yaml,gain=10000.):
