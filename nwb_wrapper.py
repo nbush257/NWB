@@ -192,6 +192,8 @@ def add_all_digital(ddf,nwb_file):
     dat = overload_ddf(ddf)
     for label in dat.eventData._fieldnames:
         AS = get_digital_AS(dat,label)
+        if AS==-1:
+            continue
         nwb_file.add_acquisition(AS)
 
 
@@ -205,11 +207,13 @@ def get_digital_AS(dat,label):
 
     :return: AS - a NWB TimeSeries object with the ddf data populated
     '''
-    print('Convertiong {}'.format(label))
+    print('Converting {}'.format(label))
     data = dat.eventData.__getattribute__(label)
     if type(data.val) is not np.array:
-        data.val = np.array([data.val])
-        data.ts = np.array([data.ts])
+        data.val = np.array([data.val]).ravel()
+        data.ts = np.array([data.ts]).ravel()
+    if len(data.ts)==0:
+        return(-1)
 
     AS = pynwb.misc.AnnotationSeries(name=label,
                                      data=data.val,
@@ -323,6 +327,17 @@ def convert_NWB(f,exp_yaml,subject=None,NWBfilename=None):
     if NWBfilename is None:
         NWBfilename = os.path.splitext(f)[0]+'.nwb'
 
+    overwrite = True
+    if os.path.exists(NWBfilename):
+        overwrite_in = input('File {} already exists. Do you want to overwrite? ([Y]/n)')
+        if len(overwrite_in)==0:
+            overwrite=True
+        if overwrite_in.lower() != 'y':
+            overwrite=False
+
+    if not overwrite:
+        print('Target file already exists. Skipping')
+        return(-1)
     # If no subject info is given, ask user for ID and genotype
     if subject is None:
         subject={}
@@ -338,10 +353,23 @@ def convert_NWB(f,exp_yaml,subject=None,NWBfilename=None):
     add_all_analog(dat,nwb_file)
     add_all_digital(dat,nwb_file)
 
+
     # write the file
     print('writing NWB_file to\n\t{}...'.format(NWBfilename))
     with NWBHDF5IO('{}'.format(NWBfilename), 'w') as io:
         io.write(nwb_file)
     print('Done!')
+
+
+def concatenate_NWB(NWB_list):
+    '''
+    Given a list of NWB files, put them all into the same file.
+    :param NWB_list:
+    :return:
+    '''
+    for f in NWB_list:
+        io = NWBHDF5IO(f,'r')
+        nwb_file = io.read()
+
 
 
