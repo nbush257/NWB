@@ -74,7 +74,7 @@ def get_subject_info(csv_file,id):
     return(pynwb.file.Subject(**sub_data))
 
 
-def init_NWB(f,subject,yaml_file):
+def init_NWB(f,yaml_file,ID):
     '''
     Initialize an NWB file with appropriate metadata
     :param p: path where all the matlab files exist to be appended to an NWB file
@@ -82,12 +82,6 @@ def init_NWB(f,subject,yaml_file):
     '''
     exp_params = import_NWB_params(yaml_file)
 
-    if type(subject) is dict:
-        exp_params['subject']=pynwb.file.Subject(subject_id=subject['ID'],genotype=subject['genotype'])
-        ID = subject['ID']
-    elif type(subject) is pynwb.file.Subject:
-        ID = subject.subject_id
-        exp_params['subject'] = subject
 
     nwb_file = NWBFile(exp_params.pop('desc'),ID,
                   session_start_time=get_ddf_starttime(f),
@@ -312,12 +306,11 @@ def concatenate_recordings(p):
     return(cat_dict)
 
 
-def convert_NWB(f,exp_yaml,subject=None,NWBfilename=None):
+def convert_NWB(f,exp_yaml,ID,NWBfilename=None):
     '''
     convert a Matlab DDF to a NWB formatted file
     :param f: DDF file to convert
     :param exp_yaml: a yaml which holds metadata for the experiment
-    :param subject: a pynwb subject object
     :param NWBfilename: the output filename to convert to. If not provided, simply changes the extension
     :return:
     '''
@@ -338,18 +331,9 @@ def convert_NWB(f,exp_yaml,subject=None,NWBfilename=None):
     if not overwrite:
         print('Target file already exists. Skipping')
         return(-1)
-    # If no subject info is given, ask user for ID and genotype
-    if subject is None:
-        subject={}
-        subject['ID'] = input('Enter the subject ID number')
-        subject['genotype'] = input('Enter the subject genotype (default=c57bl6)')
-        if len(subject['genotype'])==0:
-            subject['genotype'] = 'c57bl6'
-
-
     # Load matlab DDF and add all entries
     dat = overload_ddf(f)
-    nwb_file = init_NWB(f,subject,exp_yaml)
+    nwb_file = init_NWB(f,exp_yaml,ID)
     add_all_analog(dat,nwb_file)
     add_all_digital(dat,nwb_file)
 
