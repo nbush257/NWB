@@ -20,15 +20,16 @@ if __name__=='__main__':
 
     options,args = parser.parse_args()
 
-    print(options)
-    print(args)
 
     if options.subject is None:
     # If no subject info is given, ask user for ID and genotype
-        subject = input('Enter the subject ID number')
+        print('\n')
+        print('='*40)
+        subject = input('Enter the subject ID number: ')
 
     file_list = glob.glob(os.path.join(args[0],'*.mat'))
-    print(*file_list)
+    print('='*40)
+    print(*file_list,sep='\n')
     print(subject)
     for f in file_list:
         convert_NWB(f=f,

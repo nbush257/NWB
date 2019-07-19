@@ -322,14 +322,14 @@ def convert_NWB(f,exp_yaml,ID,NWBfilename=None):
 
     overwrite = True
     if os.path.exists(NWBfilename):
-        overwrite_in = input('File {} already exists. Do you want to overwrite? ([Y]/n)')
-        if len(overwrite_in)==0:
-            overwrite=True
-        if overwrite_in.lower() != 'y':
+        print('\n')
+        print('='*40)
+        overwrite_in = input('File {} already exists.\nDo you want to overwrite? ([Y]/n)'.format(os.path.split(f)[1]))
+        if overwrite_in.lower() == 'n':
             overwrite=False
 
     if not overwrite:
-        print('Target file already exists. Skipping')
+        print('Target file already exists. Skipping\n')
         return(-1)
     # Load matlab DDF and add all entries
     dat = overload_ddf(f)
@@ -339,7 +339,10 @@ def convert_NWB(f,exp_yaml,ID,NWBfilename=None):
 
 
     # write the file
-    print('writing NWB_file to\n\t{}...'.format(NWBfilename))
+    print('='*40)
+    print('writing NWB_file to\n{}...'.format(os.path.split(NWBfilename)[0]))
+    print('writing NWB_file to\n{}...'.format(os.path.split(NWBfilename)[1]))
+    print('='*40)
     with NWBHDF5IO('{}'.format(NWBfilename), 'w') as io:
         io.write(nwb_file)
     print('Done!')
