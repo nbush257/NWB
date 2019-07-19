@@ -353,8 +353,8 @@ def get_trial_duration_from_analog(nwb_file):
     based on all the timestamps
     '''
     durations = []
-    for acq in nwb_in.acquisition:
-        temp = nwb_in.get_acquisition(acq)
+    for acq in nwb_file.acquisition:
+        temp = nwb_file.get_acquisition(acq)
         durations.append(temp.timestamps[-1]-temp.timestamps[0])
     durations.sort()
     return(durations[-1])
@@ -389,7 +389,8 @@ def concatenate_NWB(NWB_list,catname):
     # ================================= #
     # get offset times
     # ================================= #
-    session_start_time = sort(start_times)[0]
+    start_times.sort()
+    session_start_time = start_times[0]
     offset_times = [i-session_start_time for i in start_times]
     offset_times = [i.total_seconds() for i in offset_times]
 
@@ -412,7 +413,10 @@ def concatenate_NWB(NWB_list,catname):
     # extract all data
     # ================================= #
     for acq_name in acquisition_names:
+        print('\n'+'='*40)
+        print('Concatenating {}'.format(acq_name))
         for ii,f in enumerate(NWB_list):
+            print('\tFrom file {}'.format(os.path.split(f)[1]))
             starting_time = offset_times[ii]
             io = NWBHDF5IO(f,'r')
             nwb_in = io.read()
@@ -442,6 +446,7 @@ def concatenate_NWB(NWB_list,catname):
             else:
                 cat_data = np.concatenate([cat_data,acq_data])
                 cat_ts = np.concatenate([cat_ts,acq_timestamps+starting_time])
+            io.close()
 
         # ================================= #
         # set up the concatenated objects
@@ -469,7 +474,7 @@ def concatenate_NWB(NWB_list,catname):
     # ================================= #
     # write output
     # ================================= #
-    print('writing NWB_file to\n\t{}...'.format(catname))
+    print('writing NWB_file to:\n\t{}'.format(catname))
     with NWBHDF5IO('{}'.format(catname), 'w') as io:
         io.write(nwb_out)
     print('Concatenated data!')

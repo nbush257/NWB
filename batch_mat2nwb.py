@@ -1,6 +1,5 @@
 from nwb_wrapper import *
 from optparse import OptionParser
-
 if __name__=='__main__':
     usage = "Usage: %prog path -e exp_yaml -s subject -i ID "
     parser = OptionParser(usage=usage)
@@ -16,7 +15,11 @@ if __name__=='__main__':
                       action='store',
                       default=None,
                       help='Subject ID')
-
+    parser.add_option('-c','--concatenate',
+                      dest='concat',
+                      action='store_true',
+                      default=False,
+                      help='Flag to concatenate all the data files')
 
     options,args = parser.parse_args()
 
@@ -28,6 +31,7 @@ if __name__=='__main__':
         subject = input('Enter the subject ID number: ')
 
     file_list = glob.glob(os.path.join(args[0],'*.mat'))
+    nwb_list = [os.path.splitext(i)[0]+'.nwb' for i in file_list]
     print('='*40)
     print(*file_list,sep='\n')
     print(subject)
@@ -35,7 +39,24 @@ if __name__=='__main__':
         convert_NWB(f=f,
                     exp_yaml=options.exp_yaml,
                     ID=subject)
-#
-#TODO: use concatenated awake recordings to create an NWB file
-#TODO: make the NWB file readable by KlustaKwik
+
+    prefix = os.path.commonprefix(file_list)+'.nwb'
+    if options.concat:
+        baselist = [os.path.split(i)[1] for i in file_list]
+        concatenate_NWB(nwb_list,os.path.join(args[0],prefix))
+        cleanup_nwb = input('Do you want to delete the temporary nwb files? ([Y]/n)')
+        cleanup_mat = input('Do you want to delete the temporary matlab files? ([Y]/n)')
+
+        if cleanup_mat.lower()=='y' or cleanup_mat=='':
+            for f in file_list:
+                os.remove(f)
+        if cleanup_nwb.lower()=='y' or cleanup_nwb=='':
+            for f in file_list:
+                try:
+                    nwb_f = os.path.splitext(f)[0]+'.nwb'
+                    os.remove(nwb_f)
+                except:
+                    pass
+
+
 
