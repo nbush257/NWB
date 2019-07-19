@@ -392,6 +392,7 @@ def concatenate_NWB(NWB_list,catname):
         durations.append(get_trial_duration_from_analog(nwb_in))
         for acq in nwb_in.acquisition.keys():
             acquisition_names.append(acq)
+        io.close()
     acquisition_names = list(set(acquisition_names))
     nwb_sequence = [i for (v, i) in sorted((v, i) for (i, v) in enumerate(start_times))]
     NWB_list = [NWB_list[i] for i in nwb_sequence]
