@@ -21,6 +21,12 @@ if __name__=='__main__':
                       default=False,
                       help='Flag to concatenate all the data files')
 
+    parser.add_option('-i','--ignore_calib',
+                      dest='ignore',
+                      action='store_true',
+                      default=False,
+                      help='Flag to ignore calibration files')
+
     options,args = parser.parse_args()
 
 
@@ -31,6 +37,9 @@ if __name__=='__main__':
         subject = input('Enter the subject ID number: ')
 
     file_list = glob.glob(os.path.join(args[0],'*.mat'))
+    prefix = os.path.commonprefix(file_list)+'.nwb'
+    if options.ignore:
+        file_list = [i for i in file_list if 'calib' not in i]
     nwb_list = [os.path.splitext(i)[0]+'.nwb' for i in file_list]
     print('='*40)
     print(*file_list,sep='\n')
@@ -40,7 +49,6 @@ if __name__=='__main__':
                     exp_yaml=options.exp_yaml,
                     ID=subject)
 
-    prefix = os.path.commonprefix(file_list)+'.nwb'
     if options.concat:
         baselist = [os.path.split(i)[1] for i in file_list]
         concatenate_NWB(nwb_list,os.path.join(args[0],prefix))
@@ -48,9 +56,11 @@ if __name__=='__main__':
         cleanup_mat = input('Do you want to delete the temporary matlab files? ([Y]/n)')
 
         if cleanup_mat.lower()=='y' or cleanup_mat=='':
+            file_list = glob.glob(os.path.join(args[0],'*.mat'))
             for f in file_list:
                 os.remove(f)
         if cleanup_nwb.lower()=='y' or cleanup_nwb=='':
+            file_list = glob.glob(os.path.join(args[0],'*.mat'))
             for f in file_list:
                 try:
                     nwb_f = os.path.splitext(f)[0]+'.nwb'

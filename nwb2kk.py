@@ -1,7 +1,7 @@
+import sys
 import pynwb
 import subprocess
 import matplotlib.pyplot as plt
-import sys
 import numpy as np
 import os
 from pynwb import NWBHDF5IO
@@ -9,8 +9,10 @@ import h5py
 from optparse import OptionParser
 from scipy.signal import butter
 
+# this will only work on a single channel of data!!!
+# This has to be run from the folder with the data
 
-def write_raw_for_kk(nwb_filename,save_dir=None,detect_direction=None):
+def write_raw_for_kk(nwb_filename,acq_label,save_dir=None,detect_direction=None):
     '''
     Write a raw file the Klusta kwik can work on
     :return:
@@ -29,14 +31,15 @@ def write_raw_for_kk(nwb_filename,save_dir=None,detect_direction=None):
         print('\n'+'='*15)
         print('File {} already exists\n'.format(out_filename))
         overwrite_flag = input('Overwrite(Y/n)')
-        if overwrite_flag.lower() != 'y':
+        if overwrite_flag.lower() == 'n':
             print('Exiting without writing...')
             return(0)
+    print('Click on detect direction')
 
 
     with NWBHDF5IO(nwb_filename,'r') as io:
         nwbfile = io.read()
-        ephys_ts = nwbfile.get_acquisition('channel_0')
+        ephys_ts = nwbfile.get_acquisition(acq_label)
         if detect_direction is None:
             detect_direction = manual_detect_direction(ephys_ts)
         raw_array = np.array(ephys_ts.data,dtype = 'float32')
@@ -49,6 +52,20 @@ def write_raw_for_kk(nwb_filename,save_dir=None,detect_direction=None):
     return(detect_direction)
 
 
+def get_acq_label(nwb_filename):
+    with NWBHDF5IO(nwb_filename,'r') as io:
+        nwbfile = io.read()
+        acq_names = list(nwbfile.acquisition.keys())
+        acq_label = [x for x in acq_names if 'neural' in x.lower()]
+        if len(acq_label) == 1:
+            return(acq_label[0])
+        else:
+            print('\n'+'='*40)
+            print('Acquisition names are: ')
+            print(list(nwbfile.acquisition.keys()))
+            return(input('Type the name of the acquisition that contains the neural data'))
+
+
 def manual_detect_direction(ephys_ts):
     '''
     Get user input to get spike direction
@@ -58,6 +75,8 @@ def manual_detect_direction(ephys_ts):
     #TODO: Plotting is pretty restrictive. Could make it better if need be
     plt.plot(ephys_ts.data[:1000000],'k')
     plt.title('Click above or below zero to indicate spike direction')
+    plt.draw()
+    plt.pause(0.1)
     detect_direction = plt.ginput(1)[0][1]
     plt.close('all')
     if detect_direction>0.:
@@ -66,7 +85,8 @@ def manual_detect_direction(ephys_ts):
         detect_direction='negative'
     return(detect_direction)
 
-def kk2nwb_units(kwik_filename,nwb_filename):
+
+def kk2nwb_units(kwik_filename,nwb_filename,acq_label):
     '''
     Use this function to read sorted spikes from a kwik file and append them to the nwb file
     :return None:
@@ -75,8 +95,8 @@ def kk2nwb_units(kwik_filename,nwb_filename):
     # open the nwb file for reading and appending
     io = NWBHDF5IO(nwb_filename,mode='a')
     nwbfile = io.read()
-    time_vec = nwbfile.acquisition['channel_0'].timestamps.value
-    neural = nwbfile.acquisition['channel_0'].data
+    time_vec = nwbfile.acquisition[acq_label].timestamps.value
+    neural = nwbfile.acquisition[acq_label].data
 
     # access the kwik sort data
     kwik = h5py.File(kwik_filename)
@@ -156,7 +176,8 @@ def FHC_SE_prb_file(prb_filename):
     fid.close()
     return(0)
 
-def save_param_file(nwb_filename,detect='positive'):
+
+def save_param_file(nwb_filename,acq_label,detect='positive'):
     '''
     saves a parameter file to the location of the nwb file to sort.
     currently hardcoded some default parameters, while reading in some from the file
@@ -177,15 +198,15 @@ def save_param_file(nwb_filename,detect='positive'):
 
     print('Sample Rate conversion is kinda hacky\n')
 
-    time_vec = nwbfile.acquisition['channel_0'].timestamps.value
+    time_vec = nwbfile.acquisition[acq_label].timestamps.value
     sr = np.mean(np.diff(time_vec[:1000])) ** -1
-    gain = nwbfile.acquisition['channel_0'].conversion
+    gain = nwbfile.acquisition[acq_label].conversion
 
     print('Writing parameter file to: {}'.format(param_filename))
     fid = open(param_filename,'w')
     experiment_name = os.path.splitext(os.path.split(nwb_filename)[1])[0]
-    fid.write('experiment_name = "{}"\n'.format(experiment_name))
-    fid.write('prb_file="{}"\n'.format(os.path.split(prb_filename)[1]))
+    fid.write('experiment_name = r"{}"\n'.format(experiment_name))
+    fid.write('prb_file=r"{}"\n'.format(prb_filename))
     fid.write('traces=dict(raw_data_files=["{}"],voltage_gain={},sample_rate={},n_channels=1,dtype="{}")\n'.format(
         experiment_name+'.dat',
         gain,
@@ -215,6 +236,8 @@ def save_param_file(nwb_filename,detect='positive'):
     fid.write("klustakwik2['num_starting_clusters'] = {}\n".format(25))
 
     fid.close()
+
+
 if __name__=='__main__':
     usage = "Usage: %prog [options] nwb_filename"
     parser = OptionParser(usage=usage)
@@ -247,12 +270,14 @@ if __name__=='__main__':
         p = os.getcwd()
         args[0] = os.path.join(p,args[0])
 
-    print(args)
+    acq_label = get_acq_label(args[0])
     if options.kwik_filename is not None:
-        kk2nwb_units(options.kwik_filename,args[0])
+        acq_label = get_acq_label(args[0])
+        kk2nwb_units(options.kwik_filename,args[0],acq_label)
     else:
-        detect_direction = write_raw_for_kk(args[0],save_dir=options.save_dir,detect_direction=options.detect)
-        save_param_file(args[0],detect=detect_direction)
+        acq_label = get_acq_label(args[0])
+        detect_direction = write_raw_for_kk(args[0],acq_label,save_dir=options.save_dir,detect_direction=options.detect)
+        save_param_file(args[0],acq_label,detect=detect_direction)
         prm_file = os.path.splitext(args[0])[0]
         print('Running klusta on {}.prm'.format(prm_file))
         os.system('deactivate & activate klusta & klusta {}.prm'.format(prm_file))
