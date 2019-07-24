@@ -1,5 +1,5 @@
 import numpy as np
-from tqmd import tqdm
+from tqdm import tqdm
 from nwb_wrapper import *
 def get_session_starttime(p):
     '''
