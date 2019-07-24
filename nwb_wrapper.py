@@ -166,9 +166,9 @@ def convert_TS_to_ES(TS,electrode_table_region,gain=10000.):
     :return: None
     '''
     ephys_ts = pynwb.ecephys.ElectricalSeries(TS.name,
-                                              data=TS.data,
+                                              data=TS.data.value,
                                               resolution=TS.resolution,
-                                              timestamps=TS.timestamps,
+                                              timestamps=TS.timestamps.value,
                                               conversion=gain,
                                               electrodes=electrode_table_region)
     return(ephys_ts)
