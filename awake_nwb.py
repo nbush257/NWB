@@ -1,3 +1,5 @@
+import numpy as np
+from nwb_wrapper import *
 def get_session_starttime(p):
     '''
     Return the start time of all the recordings for a given whisker/day
@@ -92,11 +94,15 @@ def mark_positions(motor,nwb_file):
     '''
     Add the times during which the motor was in a given position
     i.e., exclude times when motor is moving.
-    :param motor: The digital read from the motor
+    :param motor: The digital read from the motor (A pynwb acquisition
     :param nwb_file: the NWB file object to write to
     :return:
     '''
-    temp = np.concatenate([[0.],motor.timestamps])
+    mdata = motor.data.astype('float').astype('int')
+    idx = np.logical_or(mdata == 0, mdata == 1)
+    ts = motor.timestamps.value[idx]
+
+    temp = np.concatenate([[0.],ts])
     position_times = np.reshape(temp[:-1],[-1,2]) # marks the motor motion time
     for ii,(onset,offset) in enumerate(position_times):
         nwb_file.add_epoch(onset,offset,'pos_{0:03d}'.format(ii))

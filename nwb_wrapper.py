@@ -156,7 +156,7 @@ def get_analog_TS(dat,label):
     return(TS)
 
 
-def convert_TS_to_ES(TS,electrode_table_region,gain=10000):
+def convert_TS_to_ES(TS,electrode_table_region,gain=10000.):
     '''
     This function takes a TimeSeries base class object and converts it to
     and ElectricalSeries subclass object
@@ -167,10 +167,10 @@ def convert_TS_to_ES(TS,electrode_table_region,gain=10000):
     '''
     ephys_ts = pynwb.ecephys.ElectricalSeries(TS.name,
                                               data=TS.data,
-                                              unit=TS.unit,
-                                              resolution=TS.Resolution,
+                                              resolution=TS.resolution,
                                               timestamps=TS.timestamps,
-                                              electrode_table_region=electrode_table_region)
+                                              conversion=gain,
+                                              electrodes=electrode_table_region)
     return(ephys_ts)
 
 
