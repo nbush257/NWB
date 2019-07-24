@@ -1,4 +1,5 @@
 import numpy as np
+from tqmd import tqdm
 from nwb_wrapper import *
 def get_session_starttime(p):
     '''
@@ -191,6 +192,12 @@ def trigger_to_idx(trigger,thresh=100.,sign='+'):
     print('Frame rate of camera is calculated to be {:.2f} fps\n'.format(frame_interval**-1))
 
     return(idx)
+
+def ts_to_index(spike_times,sample_times):
+    spike_frame = np.empty_like(spike_times)
+    for ii,spike in tqdm(enumerate(spike_times)):
+        spike_frame[ii] = np.argmax(spike<sample_times)
+    return(spike_frame)
 
 
 def add_trial_data(nwb_file,cat_dict):

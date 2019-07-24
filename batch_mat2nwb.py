@@ -1,7 +1,7 @@
 from nwb_wrapper import *
 from optparse import OptionParser
 if __name__=='__main__':
-    usage = "Usage: %prog path -e exp_yaml -s subject -i ID "
+    usage = "Usage: %prog path -e exp_yaml -s subject [-c concatenate] [-i ignore_calib] "
     parser = OptionParser(usage=usage)
     parser.add_option('-e','--experiment',
                       type='string',

@@ -125,7 +125,7 @@ def kk2nwb_units(kwik_filename,nwb_filename,acq_label):
         wvfm_m,wvfm_sd = get_waveforms(spike_idx,neural)[1:]
 
         nwbfile.add_unit(id=ii,electrodes=[0],
-                         spike_times=time_vec[spikesamps],
+                         spike_times=spikesamps,
                          waveform_mean=wvfm_m,
                          waveform_sd=wvfm_sd)
 
