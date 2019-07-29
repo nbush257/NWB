@@ -6,6 +6,7 @@ From the command line: `activate nwb`
 1. cd into that directory in Matlab and run `ddf2mat.m`.  
 This will create convert the DDF proprietary data format into a Matlab struct. This file is meant to be a temporary conversion format. 
 You should now have a new directory with a list of mat files. We will call this "data_path" 
+1. activate the NWB environment with `activate nwb`
 1. Run `python batch_mat2nwb.py "data_path" -e "exp_yaml" -c -i "`  
 Where `exp_yaml` is a text file that contains the experimental metadata  
 This converts the matlab ddfs into individual nwb files, concatenates them, and ignores calibration files. You will be asked at the end if you want to remove the old individual files.  
